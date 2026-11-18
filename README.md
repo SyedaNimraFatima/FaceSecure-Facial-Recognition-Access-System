@@ -192,7 +192,8 @@ The question comes directly from the observations above: the system recognised g
 **Python version:** use Python 3.13. ONNX Runtime does not support Python 3.15 yet.
 
 ```
-cd "FaceSecure – Facial Recognition Access System"
+git clone https://github.com/SyedaNimraFatima/FaceSecure-Facial-Recognition-Access-System.git
+cd FaceSecure-Facial-Recognition-Access-System
 py -V:3.13 -m venv accessdoor
 accessdoor\Scripts\activate
 pip install -r requirements.txt
@@ -246,11 +247,11 @@ The first time you click *Admin login* (or use an admin option in `main.py`), yo
 - An evaluation of the liveness model on covered faces.
 
 ## 13. License
-© 2026 [Your Name]. All rights reserved.
+© 2026 Syeda Nimra Fatima. All rights reserved.
 
-This code is shared for viewing and evaluation only. It may not be copied, modified, distributed or used, in whole or in part, without my prior written permission. To request permission, email [your email].
+This code is shared for viewing and evaluation only. It may not be copied, modified, distributed or used, in whole or in part, without my prior written permission. To request permission, email inimrasyed@gmail.com.
 
 The InsightFace pretrained models (`buffalo_l` and the liveness model) are not included in this repository. They are downloaded on first run and are licensed by InsightFace for non-commercial research use only. DigiFace-1M (section 9) is licensed by Microsoft for non-commercial research use.
 
 ## 14. Contact
-[Your Name] · [your email] · GitHub: [your GitHub username]
+Syeda Nimra Fatima · inimrasyed@gmail.com · GitHub: [SyedaNimraFatima](https://github.com/SyedaNimraFatima)
