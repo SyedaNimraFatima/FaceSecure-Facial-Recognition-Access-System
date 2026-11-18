@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FaceSecure</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2315171c'/%3E%3Cpath d='M6 9V7.5A1.5 1.5 0 0 1 7.5 6H9M15 6h1.5A1.5 1.5 0 0 1 18 7.5V9M18 15v1.5a1.5 1.5 0 0 1-1.5 1.5H15M9 18H7.5A1.5 1.5 0 0 1 6 16.5V15' stroke='white' fill='none' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#f5f6f4; --surface:#ffffff; --ink:#15171c; --muted:#6b7079; --faint:#9aa0a8;
+    --line:#e5e7e2; --soft:#eef0ec; --ok:#12916a; --ok-bg:#e7f5ef; --bad:#cf3f3f; --bad-bg:#fbeceb;
+    --info:#3b5bdb; --info-bg:#edf1fd; --radius:16px;
+    --shadow:0 1px 2px rgba(20,23,28,.04),0 6px 24px rgba(20,23,28,.05);
+  }
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 "Inter","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  button,input,select{font:inherit;color:inherit}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 28px 60px}
+
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:26px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .mark{width:38px;height:38px;border-radius:11px;background:var(--ink);display:grid;place-items:center}
+  .brand h1{font-size:18px;margin:0;letter-spacing:-.01em}
+  .brand p{margin:0;color:var(--muted);font-size:13px}
+  .pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+    background:var(--surface);border:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .dot.on{background:var(--ok)}
+
+  /* tabs */
+  nav{display:flex;gap:4px;padding:4px;background:var(--soft);border-radius:12px;width:max-content;margin-bottom:22px}
+  nav button{border:0;background:none;padding:8px 18px;border-radius:9px;cursor:pointer;color:var(--muted);font-weight:500}
+  nav button.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  section{display:none} section.active{display:block}
+
+  .grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);gap:22px;align-items:start}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+  .card h3{margin:0 0 14px;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+  /* camera stage */
+  .stage{position:relative;aspect-ratio:4/3;background:#0e1013;border-radius:var(--radius);overflow:hidden}
+  .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  .stage canvas{position:absolute;inset:0;width:100%;height:100%}
+  .stage .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#c9cdd3;padding:30px}
+  .stage .empty small{display:block;color:#7d838c;margin-top:6px}
+  .guide{position:absolute;left:50%;top:47%;width:38%;aspect-ratio:3/4;transform:translate(-50%,-50%);
+    border:2px dashed rgba(255,255,255,.55);border-radius:50%;pointer-events:none}
+  .count{position:absolute;inset:0;display:grid;place-items:center;font-size:96px;font-weight:700;color:#fff;
+    text-shadow:0 4px 30px rgba(0,0,0,.4);pointer-events:none}
+  .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .35s}
+  .prompt{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(14,16,19,.72);
+    color:#fff;padding:8px 16px;border-radius:999px;font-size:14px;backdrop-filter:blur(6px);white-space:nowrap}
+  .controls{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .meta{margin-left:auto;color:var(--faint);font-size:13px;font-variant-numeric:tabular-nums}
+
+  .btn{border:1px solid var(--line);background:var(--surface);padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:500}
+  .btn:hover{border-color:#cfd2cc}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+  .btn.primary:hover{background:#2a2e36}
+  .btn.danger{color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .toggle{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;cursor:pointer;user-select:none}
+
+  /* decision */
+  .decision{padding:26px 22px;border-radius:var(--radius);border:1px solid var(--line);background:var(--surface);
+    box-shadow:var(--shadow);transition:background .25s,border-color .25s}
+  .decision .label{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .decision .who{font-size:30px;font-weight:650;letter-spacing:-.02em;margin:6px 0 2px;min-height:44px}
+  .decision .sub{color:var(--muted);font-size:14px;min-height:21px}
+  .decision.ok{background:var(--ok-bg);border-color:#bfe3d4}.decision.ok .label{color:var(--ok)}
+  .decision.bad{background:var(--bad-bg);border-color:#f0c9c6}.decision.bad .label{color:var(--bad)}
+  .bar{height:6px;border-radius:6px;background:rgba(0,0,0,.07);margin-top:16px;overflow:hidden;position:relative}
+  .bar i{display:block;height:100%;width:0;background:var(--ink);border-radius:6px;transition:width .3s}
+  .decision.ok .bar i{background:var(--ok)} .decision.bad .bar i{background:var(--bad)}
+  .bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--muted);opacity:.5}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .stat .n{font-size:24px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:12.5px;color:var(--muted)}
+
+  .feed{list-style:none;margin:0;padding:0}
+  .feed li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--soft)}
+  .feed li:first-child{border-top:0}
+  .feed .t{margin-left:auto;color:var(--faint);font-size:12.5px;font-variant-numeric:tabular-nums}
+  .ava{width:34px;height:34px;border-radius:50%;object-fit:cover;background:var(--soft);flex:none;display:grid;place-items:center;
+    font-size:13px;font-weight:600;color:var(--muted)}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;text-transform:capitalize}
+  .badge.granted{background:var(--ok-bg);color:var(--ok)} .badge.denied{background:var(--bad-bg);color:var(--bad)}
+  .badge.spoof{background:#f3e8fd;color:#7b2cbf}
+  .decision.spoof{background:#f6effd;border-color:#dfc8f5}.decision.spoof .label{color:#7b2cbf}.decision.spoof .bar i{background:#7b2cbf}
+  .decision.check{background:#fdf6ea;border-color:#f1dcb5}.decision.check .label{color:#a4650a}
+  .badge.admin{background:var(--info-bg);color:var(--info)}
+  .muted{color:var(--muted)} .small{font-size:13px}
+
+  /* enrol */
+  label.field{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
+  input[type=text]{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
+  input[type=text]:focus{border-color:var(--ink)}
+  .slots{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:18px 0}
+  .slot{aspect-ratio:1;border-radius:10px;background:var(--soft);border:1px dashed #d7dad3;overflow:hidden;display:grid;place-items:center;
+    color:var(--faint);font-size:12px}
+  .slot img{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  .msg{padding:11px 14px;border-radius:10px;font-size:14px;margin-top:14px;display:none}
+  .msg.ok{display:block;background:var(--ok-bg);color:#0c6e50} .msg.bad{display:block;background:var(--bad-bg);color:#a33131}
+  .msg.info{display:block;background:var(--soft);color:var(--muted)}
+  ol.tips{margin:16px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px} ol.tips li{margin:3px 0}
+
+  /* people */
+  .people{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+  .person{text-align:center;padding:24px 18px 18px}
+  .person .ava{width:84px;height:84px;margin:0 auto 12px;font-size:28px}
+  .person .name{font-weight:600;font-size:16px}
+  .person .actions{display:flex;gap:8px;justify-content:center;margin-top:14px}
+  .person .actions{gap:6px}
+  .person .actions .btn{padding:7px 10px;font-size:13px;white-space:nowrap}
+  .blank{text-align:center;padding:60px 20px;color:var(--muted)}
+
+  /* activity */
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  select{padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12.5px;font-weight:600;color:var(--muted);padding:0 12px 10px;border-bottom:1px solid var(--line)}
+  td{padding:11px 12px;border-bottom:1px solid var(--soft);vertical-align:middle;font-variant-numeric:tabular-nums}
+  td img{width:44px;height:44px;object-fit:cover;border-radius:8px;cursor:zoom-in;display:block}
+  dialog{border:0;border-radius:var(--radius);padding:0;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  dialog img{display:block;max-width:80vw;max-height:80vh}
+  dialog::backdrop{background:rgba(14,16,19,.55)}
+  footer{margin-top:40px;color:var(--faint);font-size:12.5px;text-align:center}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .row2 > div > input, .row2 > div > select{width:100%}
+  select.full{width:100%;padding:11px 13px;border-radius:10px}
+  input[type=time],input[type=date],input[type=password],input[type=month]{padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none;width:100%}
+  input[type=time]:focus,input[type=date]:focus,input[type=password]:focus{border-color:var(--ink)}
+  .mt{margin-top:12px}
+  dialog.form{width:min(440px,92vw);padding:24px}
+  dialog.form h2{margin:0 0 4px;font-size:18px} dialog.form p{margin:0 0 14px}
+  dialog.form .controls{justify-content:flex-end;margin-top:18px}
+  .badge.late,.badge.left-early{background:#fdf3e1;color:#a4650a}
+  .badge.absent,.badge.no-check-out{background:var(--bad-bg);color:var(--bad)}
+  .badge.on-time{background:var(--ok-bg);color:var(--ok)}
+  .badge.in-office{background:var(--info-bg);color:var(--info)}
+  .badge.day-off,.badge.not-in-yet{background:var(--soft);color:var(--muted)}
+  .badge.corrected,.badge.edited{background:var(--info-bg);color:var(--info)}
+  .person .meta2{font-size:13px;color:var(--muted);margin-top:2px}
+  .looks{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:10px}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 9px;border-radius:999px;background:var(--soft);font-size:12px;color:var(--muted)}
+  .chip button{border:0;background:none;color:var(--faint);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}
+  .chip button:hover{color:var(--bad)}
+  .person .actions{flex-wrap:wrap}
+  .who-cell{display:flex;align-items:center;gap:10px}
+  .who-cell small{display:block;color:var(--faint);font-size:12px}
+  .hint{color:var(--faint);font-size:12.5px;margin-top:14px}
+  .stats.five{grid-template-columns:repeat(5,1fr)}
+  @media (max-width:900px){.stats.five{grid-template-columns:repeat(2,1fr)}}
+  #adminBtn{cursor:pointer}
+  #camSel{max-width:220px;cursor:pointer;color:var(--ink)}
+  #adminBtn.on{color:var(--ink);border-color:#cfd2cc}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+          <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>
+          <circle cx="9.5" cy="10" r=".6" fill="#fff"/><circle cx="14.5" cy="10" r=".6" fill="#fff"/>
+          <path d="M9.5 15c1.4 1 3.6 1 5 0"/>
+        </svg>
+      </div>
+      <div><h1>FaceSecure</h1><p>Facial recognition access &amp; attendance</p></div>
+    </div>
+    <div class="pills">
+      <span class="pill"><span class="dot" id="dbDot"></span><span id="dbLabel">Connecting…</span></span>
+      <span class="pill" id="usersPill">— registered</span>
+      <span class="pill" id="livePill" hidden>Liveness on</span>
+      <select class="pill" id="camSel" title="Camera" hidden></select>
+      <button class="pill" id="adminBtn">Admin login</button>
+    </div>
+  </header>
+
+  <nav>
+    <button data-tab="live" class="active">Live</button>
+    <button data-tab="enrol">Register</button>
+    <button data-tab="people">People</button>
+    <button data-tab="attendance">Attendance</button>
+    <button data-tab="activity">Activity</button>
+  </nav>
+
+  <!-- LIVE -->
+  <section id="live" class="active">
+    <div class="grid">
+      <div>
+        <div class="stage" id="liveStage">
+          <video id="liveVideo" playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="empty" id="liveEmpty">Camera is off<small>Press “Start recognition” to begin</small></div>
+        </div>
+        <div class="controls">
+          <button class="btn primary" id="liveBtn">Start recognition</button>
+          <label class="toggle"><input type="checkbox" id="voice" checked> Voice announcements</label>
+          <span class="meta" id="latency"></span>
+        </div>
+      </div>
+      <div>
+        <div class="decision" id="decision">
+          <div class="label" id="decLabel">Idle</div>
+          <div class="who" id="decWho">—</div>
+          <div class="sub" id="decSub">Waiting for a face</div>
+          <div class="bar"><i id="decBar"></i><b id="decThr"></b></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="n" id="sGranted">0</div><div class="k">Granted today</div></div>
+          <div class="stat"><div class="n" id="sDenied">0</div><div class="k">Denied today</div></div>
+          <div class="stat"><div class="n" id="sUsers">0</div><div class="k">Registered</div></div>
+        </div>
+        <div class="card" id="recentCard" hidden>
+          <h3>Recent events</h3>
+          <ul class="feed" id="recent"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGISTER -->
+  <section id="enrol">
+    <div class="grid">
+      <div class="stage">
+        <video id="enrolVideo" playsinline muted></video>
+        <div class="guide"></div>
+        <div class="flash" id="flash"></div>
+        <div class="count" id="count"></div>
+        <div class="prompt" id="prompt" hidden></div>
+        <div class="empty" id="enrolEmpty" hidden></div>
+      </div>
+      <div class="card">
+        <h3 id="enrolTitle">Register a new employee</h3>
+        <label class="field" for="name">Full name</label>
+        <input type="text" id="name" placeholder="e.g. Ayesha Khan" autocomplete="off">
+        <div id="detailFields">
+          <div class="row2">
+            <div><label class="field" for="empId">Employee ID</label><input type="text" id="empId" placeholder="e.g. EMP-014" autocomplete="off"></div>
+            <div><label class="field" for="dept">Department</label><input type="text" id="dept" placeholder="e.g. Finance" autocomplete="off"></div>
+          </div>
+          <div class="mt"><label class="field" for="shift">Shift</label><select class="full" id="shift"></select></div>
+          <div class="row2" id="customShift" hidden>
+            <div><label class="field" for="shiftStart">Starts</label><input type="time" id="shiftStart" value="09:00"></div>
+            <div><label class="field" for="shiftEnd">Ends</label><input type="time" id="shiftEnd" value="17:00"></div>
+          </div>
+        </div>
+        <div id="lookFields" class="mt" hidden>
+          <label class="field" for="lookLabel">This look is with…</label>
+          <select class="full" id="lookLabel">
+            <option value="glasses">Glasses</option><option value="hijab">Hijab</option>
+            <option value="niqab">Niqab</option><option value="mask">Face mask</option>
+            <option value="dupatta">Dupatta</option><option value="beard">New beard / shaved</option>
+            <option value="other">Other</option>
+          </select>
+          <div class="muted small" style="margin-top:6px">Capture the person wearing it. They will then be recognised with or without it.</div>
+        </div>
+        <div class="slots" id="slots"></div>
+        <div class="controls" style="margin-top:0">
+          <button class="btn primary" id="captureBtn">Capture 5 photos</button>
+          <button class="btn" id="cancelUpdate" hidden>Cancel</button>
+        </div>
+        <div class="msg" id="enrolMsg"></div>
+        <ol class="tips">
+          <li>Keep your face inside the oval, in even light.</li>
+          <li>Follow the on-screen prompts — small head turns give a stronger profile.</li>
+          <li>Glasses, hijab or dupatta are fine; register the way you'll usually appear.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- PEOPLE -->
+  <section id="people">
+    <div class="people" id="peopleGrid"></div>
+  </section>
+
+  <!-- ATTENDANCE -->
+  <section id="attendance">
+    <div class="card">
+      <div class="toolbar">
+        <button class="btn" id="prevDay">‹</button>
+        <input type="date" id="attDate" style="width:auto">
+        <button class="btn" id="nextDay">›</button>
+        <button class="btn" id="todayBtn">Today</button>
+        <span class="muted small" id="attDay"></span>
+        <button class="btn" id="exportBtn" style="margin-left:auto">Export month (CSV)</button>
+      </div>
+      <div class="stats five">
+        <div class="stat"><div class="n" id="aPresent">0</div><div class="k">Present</div></div>
+        <div class="stat"><div class="n" id="aLate">0</div><div class="k">Late</div></div>
+        <div class="stat"><div class="n" id="aAbsent">0</div><div class="k">Absent</div></div>
+        <div class="stat"><div class="n" id="aNoOut">0</div><div class="k">No check-out</div></div>
+        <div class="stat"><div class="n" id="aTail">0</div><div class="k">Unknown face with staff</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Employee</th><th>Shift</th><th>Check-in</th><th>Check-out</th><th>Hours</th><th>Status</th><th></th></tr></thead>
+        <tbody id="attBody"></tbody>
+      </table>
+      <div class="hint" id="attRules"></div>
+    </div>
+  </section>
+
+  <!-- ACTIVITY -->
+  <section id="activity">
+    <div class="card">
+      <div class="toolbar">
+        <select id="filter">
+          <option value="all">All events</option>
+          <option value="granted">Granted</option>
+          <option value="denied">Denied</option>
+          <option value="spoof">Spoof attempts</option>
+          <option value="admin">Admin changes</option>
+        </select>
+        <button class="btn" id="refreshLogs">Refresh</button>
+        <span class="muted small" id="logCount"></span>
+      </div>
+      <table>
+        <thead><tr><th>Time</th><th>Event</th><th>Person</th><th>Similarity</th><th>Details</th><th>Snapshot</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>FaceSecure · InsightFace (SCRFD detector + ArcFace embeddings + liveness model) · data saved locally</footer>
+</div>
+
+<dialog id="viewer"><img id="viewerImg" alt="snapshot"></dialog>
+
+<dialog class="form" id="loginDlg">
+  <form id="loginForm" method="dialog">
+    <h2 id="loginTitle">Admin login</h2>
+    <p class="muted small" id="loginText">Only the admin can register, edit or delete employees and view records.</p>
+    <label class="field" for="pw1">Password</label>
+    <input type="password" id="pw1" autocomplete="current-password">
+    <div id="pw2Wrap" class="mt" hidden><label class="field" for="pw2">Confirm password</label><input type="password" id="pw2" autocomplete="new-password"></div>
+    <div class="msg" id="loginMsg"></div>
+    <div class="controls"><button type="button" class="btn" id="loginCancel">Cancel</button><button class="btn primary" id="loginGo">Log in</button></div>
+  </form>
+</dialog>
+
+<dialog class="form" id="editDlg">
+  <form id="editForm" method="dialog">
+    <h2>Edit employee</h2>
+    <p class="muted small" id="editName"></p>
+    <div class="row2" style="margin-top:0">
+      <div><label class="field" for="eEmpId">Employee ID</label><input type="text" id="eEmpId"></div>
+      <div><label class="field" for="eDept">Department</label><input type="text" id="eDept"></div>
+    </div>
+    <div class="row2">
+      <div><label class="field" for="eStart">Shift starts</label><input type="time" id="eStart"></div>
+      <div><label class="field" for="eEnd">Shift ends</label><input type="time" id="eEnd"></div>
+    </div>
+    <div class="msg" id="editMsg"></div>
+    <div class="controls"><button type="button" class="btn" id="editCancel">Cancel</button><button class="btn primary">Save</button></div>
+  </form>
+</dialog>
+
+<dialog class="form" id="fixDlg">
+  <form id="fixForm" method="dialog">
+    <h2>Correct attendance</h2>
+    <p class="muted small" id="fixWho"></p>
+    <div class="row2" style="margin-top:0">
+      <div><label class="field" for="fixField">What to set</label><select class="full" id="fixField"><option value="check_in">Check-in</option><option value="check_out">Check-out</option></select></div>
+      <div><label class="field" for="fixTime">Time</label><input type="time" id="fixTime"></div>
+    </div>
+    <div class="mt"><label class="field" for="fixNote">Reason (saved in the record)</label><input type="text" id="fixNote" placeholder="e.g. Entered with a group, face not captured"></div>
+    <div class="msg" id="fixMsg"></div>
+    <div class="controls"><button type="button" class="btn" id="fixCancel">Cancel</button><button class="btn primary">Save correction</button></div>
+  </form>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const initials = n => (n || "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+const avatar = (src, name, cls="ava") => src
+  ? `<img class="${cls}" src="${src}" alt="" data-initials="${esc(initials(name))}" onerror="noPhoto(this)">`
+  : `<div class="${cls}">${esc(initials(name))}</div>`;
+function noPhoto(img) { const d = document.createElement("div"); d.className = img.className; d.textContent = img.dataset.initials; img.replaceWith(d); }
+const fmtTime = ts => new Date(ts).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+const fmtDateTime = ts => new Date(ts).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit", second:"2-digit"});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const slug = s => s.toLowerCase().replace(/[^a-z]+/g, "-");
+const ADMIN_EVENTS = ["registered","updated","edited","deleted","corrected","look added","look removed"];
+const badge = e => `<span class="badge ${ADMIN_EVENTS.includes(e) ? "admin" : e}" style="white-space:nowrap">${e}</span>`;
+const localDate = (d=new Date()) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+const ADMIN_TABS = ["enrol", "people", "attendance", "activity"];
+
+async function api(path, opts={}) {
+  const res = await fetch(path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401 && !path.startsWith("/api/admin")) { setAdmin(false); askLogin(); }
+  if (!res.ok) { const err = new Error(body.detail || `Request failed (${res.status})`); err.status = res.status; throw err; }
+  return body;
+}
+const form = obj => { const fd = new FormData(); Object.entries(obj).forEach(([k, v]) => fd.append(k, v ?? "")); return fd; };
+
+/* ---------------- status ---------------- */
+let THRESHOLD = 0.55, LIVE_THRESHOLD = 0.8, SHIFTS = {}, RULES = {grace:15, min_stay:30};
+async function refreshStatus() {
+  try {
+    const s = await api("/api/status");
+    THRESHOLD = s.threshold; SHIFTS = s.shifts; RULES = {grace:s.grace, min_stay:s.min_stay};
+    $("dbLabel").textContent = s.storage;
+    $("dbDot").classList.add("on");
+    $("usersPill").textContent = `${s.users} registered`;
+    $("livePill").hidden = false;
+    $("livePill").innerHTML = s.liveness ? '<span class="dot on"></span>Liveness on' : '<span class="dot"></span>Liveness off';
+    LIVE_THRESHOLD = s.live_threshold;
+    $("sGranted").textContent = s.granted; $("sDenied").textContent = s.denied; $("sUsers").textContent = s.users;
+    $("decThr").style.left = `${s.threshold * 100}%`;
+    if (!$("shift").options.length) fillShifts();
+  } catch { $("dbLabel").textContent = "Server offline"; $("dbDot").classList.remove("on"); }
+}
+
+/* ---------------- admin ---------------- */
+let ADMIN_ON = false, PASSWORD_SET = true, pendingTab = null;
+function setAdmin(on) {
+  ADMIN_ON = on;
+  $("adminBtn").textContent = on ? "Admin · Log out" : "Admin login";
+  $("adminBtn").classList.toggle("on", on);
+  $("recentCard").hidden = !on;
+  if (on) loadRecent();
+  else if (ADMIN_TABS.some(t => $(t).classList.contains("active"))) showTab("live");
+}
+async function checkAdmin() {
+  const a = await api("/api/admin");
+  PASSWORD_SET = a.password_set; setAdmin(a.logged_in);
+}
+function askLogin(tab) {
+  pendingTab = tab || pendingTab;
+  if ($("loginDlg").open) return;
+  $("loginTitle").textContent = PASSWORD_SET ? "Admin login" : "Create the admin password";
+  $("loginText").textContent = PASSWORD_SET
+    ? "Only the admin can register, edit or delete employees and view records."
+    : "First time here: choose a password (at least 6 characters). Only someone with it can register, edit or delete employees.";
+  $("pw2Wrap").hidden = PASSWORD_SET;
+  $("loginGo").textContent = PASSWORD_SET ? "Log in" : "Create & log in";
+  $("pw1").value = $("pw2").value = ""; $("loginMsg").className = "msg";
+  $("loginDlg").showModal(); $("pw1").focus();
+}
+$("adminBtn").onclick = async () => {
+  if (ADMIN_ON) { await api("/api/admin/logout", {method:"POST"}); setAdmin(false); }
+  else askLogin();
+};
+$("loginCancel").onclick = () => { pendingTab = null; $("loginDlg").close(); };
+$("loginForm").onsubmit = async e => {
+  e.preventDefault();
+  const pw = $("pw1").value, m = $("loginMsg");
+  if (!PASSWORD_SET && pw !== $("pw2").value) { m.className = "msg bad"; m.textContent = "Passwords don't match."; return; }
+  try {
+    await api(PASSWORD_SET ? "/api/admin/login" : "/api/admin/setup", {method:"POST", body:form({password:pw})});
+    PASSWORD_SET = true; $("loginDlg").close(); setAdmin(true);
+    if (pendingTab) { showTab(pendingTab); pendingTab = null; }
+  } catch (err) { m.className = "msg bad"; m.textContent = err.message; }
+};
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(tab) {
+  if (ADMIN_TABS.includes(tab) && !ADMIN_ON) return askLogin(tab);
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === tab));
+  if (tab !== "live") stopLive();
+  if (tab === "enrol") startEnrolCamera(); else if (!capturing) releaseCameraIfIdle();
+  if (tab === "people") loadPeople();
+  if (tab === "attendance") loadAttendance();
+  if (tab === "activity") loadLogs();
+}
+
+/* ---------------- camera ---------------- */
+let stream = null, CAM_ID = null;
+try { CAM_ID = localStorage.getItem("facesecure_camera"); } catch {}
+async function getStream() {
+  if (stream) return stream;
+  const open = id => navigator.mediaDevices.getUserMedia({audio:false,
+    video: {width:{ideal:1280}, height:{ideal:960}, ...(id ? {deviceId:{exact:id}} : {})}});
+  let firstError = null;
+  try { stream = await open(CAM_ID); }
+  catch (e) {
+    // chosen/default camera failed (e.g. broken laptop camera): try every other camera in turn
+    firstError = e;
+    const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput" && d.deviceId);
+    for (const c of cams) {
+      if (c.deviceId === CAM_ID) continue;
+      try { stream = await open(c.deviceId); CAM_ID = c.deviceId; break; } catch {}
+    }
+  }
+  await listCameras();
+  if (!stream) {
+    const name = firstError?.name || "";
+    throw new Error(name === "NotAllowedError" ? "Camera permission was blocked. Click the camera icon in the address bar and allow it."
+      : name === "NotReadableError" ? "The camera is busy or not working. Close other apps using it, or pick another camera from the 📷 menu."
+      : name === "NotFoundError" ? "No camera found. Start Iriun on the phone and the laptop, then reload this page."
+      : (firstError?.message || "Camera unavailable"));
+  }
+  return stream;
+}
+async function listCameras() {
+  try {
+    const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+    const current = stream?.getVideoTracks()[0]?.getSettings().deviceId || CAM_ID;
+    $("camSel").innerHTML = cams.map((c, i) =>
+      `<option value="${esc(c.deviceId)}" ${c.deviceId === current ? "selected" : ""}>📷 ${esc(c.label || "Camera " + (i + 1))}</option>`).join("");
+    $("camSel").hidden = !cams.length;
+  } catch {}
+}
+navigator.mediaDevices?.addEventListener?.("devicechange", listCameras);
+$("camSel").onchange = async () => {
+  CAM_ID = $("camSel").value;
+  try { localStorage.setItem("facesecure_camera", CAM_ID); } catch {}
+  if (!stream) return;
+  stream.getTracks().forEach(t => t.stop()); stream = null;
+  if (liveRunning) await attach($("liveVideo"));
+  if ($("enrol").classList.contains("active")) await startEnrolCamera();
+};
+function releaseCameraIfIdle() {
+  if (stream && !liveRunning && !capturing) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+async function attach(video) {
+  video.srcObject = await getStream();
+  await video.play();
+  if (!video.videoWidth) await new Promise(r => video.onloadedmetadata = r);
+}
+function grab(video, maxW=640, q=0.85) {
+  const s = Math.min(1, maxW / video.videoWidth);
+  const c = document.createElement("canvas");
+  c.width = Math.round(video.videoWidth * s); c.height = Math.round(video.videoHeight * s);
+  c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(b => r({blob:b, url:c.toDataURL("image/jpeg", .7)}), "image/jpeg", q));
+}
+function cameraError(el, e) {
+  el.hidden = false;
+  el.innerHTML = `Camera unavailable<small>${esc(e.message || e)}</small>`;
+}
+
+/* ---------------- live recognition ---------------- */
+let liveRunning = false, lastFaceAt = 0;
+const voice = $("voice");
+$("liveBtn").onclick = () => liveRunning ? stopLive() : startLive();
+
+async function startLive() {
+  try { await attach($("liveVideo")); } catch (e) { return cameraError($("liveEmpty"), e); }
+  $("liveEmpty").hidden = true;
+  liveRunning = true;
+  $("liveBtn").textContent = "Stop";
+  setDecision("scan");
+  loop();
+}
+function stopLive() {
+  if (!liveRunning) return;
+  liveRunning = false;
+  $("liveBtn").textContent = "Start recognition";
+  $("latency").textContent = "";
+  clearOverlay();
+  setDecision("idle");
+  $("liveEmpty").hidden = false;
+  $("liveEmpty").innerHTML = 'Camera is off<small>Press “Start recognition” to begin</small>';
+  releaseCameraIfIdle();
+}
+async function loop() {
+  while (liveRunning) {
+    const t0 = performance.now();
+    try {
+      const {blob} = await grab($("liveVideo"));
+      const fd = new FormData(); fd.append("file", blob, "frame.jpg");
+      const r = await api("/api/recognize", {method:"POST", body:fd});
+      if (!liveRunning) break;
+      drawFaces(r);
+      handleResult(r);
+      $("latency").textContent = `${Math.round(performance.now() - t0)} ms / frame`;
+    } catch (e) { $("latency").textContent = e.message; await sleep(800); }
+    await sleep(60);
+  }
+}
+function clearOverlay() { const c = $("overlay"); c.getContext("2d").clearRect(0, 0, c.width, c.height); }
+function drawFaces(r) {
+  const c = $("overlay"), v = $("liveVideo"), dpr = window.devicePixelRatio || 1;
+  const W = c.clientWidth, H = c.clientHeight;
+  c.width = W * dpr; c.height = H * dpr;
+  const ctx = c.getContext("2d"); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, W, H);
+  // map frame coords -> displayed (object-fit: cover, mirrored)
+  const s = Math.max(W / r.width, H / r.height), ox = (W - r.width * s) / 2, oy = (H - r.height * s) / 2;
+  for (const f of r.faces) {
+    const [x1, y1, x2, y2] = f.box;
+    const w = (x2 - x1) * s, h = (y2 - y1) * s, x = W - (ox + x2 * s), y = oy + y1 * s;
+    const st = f.status || (f.granted ? "granted" : f.confirmed === false ? "checking" : "denied");
+    const col = {granted:"#19b585", checking:"#e2a03f", spoof:"#9b4dda"}[st] || "#ef5350";
+    ctx.lineWidth = 2.5; ctx.strokeStyle = col;
+    corners(ctx, x, y, w, h, Math.min(w, h) * .22);
+    const label = st === "granted" ? `${f.name}  ${f.score.toFixed(2)}` : st === "spoof" ? "Spoof detected"
+                : st === "checking" ? (f.hint || "Checking…") : "Access denied";
+    ctx.font = "600 14px Inter, Segoe UI, system-ui, sans-serif";
+    const tw = ctx.measureText(label).width + 18, lx = Math.min(Math.max(0, x), W - tw), ly = Math.max(0, y - 32);
+    ctx.fillStyle = col; roundRect(ctx, lx, ly, tw, 26, 7); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.fillText(label, lx + 9, ly + 18);
+  }
+}
+function corners(ctx, x, y, w, h, l) {
+  ctx.beginPath();
+  [[x, y + l, x, y, x + l, y], [x + w - l, y, x + w, y, x + w, y + l],
+   [x + w, y + h - l, x + w, y + h, x + w - l, y + h], [x + l, y + h, x, y + h, x, y + h - l]]
+    .forEach(([a, b, c, d, e, f]) => { ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.lineTo(e, f); });
+  ctx.stroke();
+  ctx.globalAlpha = .25; ctx.strokeRect(x, y, w, h); ctx.globalAlpha = 1;
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function handleResult(r) {
+  if (r.faces.length) {
+    lastFaceAt = Date.now();
+    const f = r.faces.find(x => x.granted) || r.faces.find(x => x.status === "spoof") || r.faces[0];
+    const st = f.status || (f.granted ? "granted" : f.confirmed === false ? "checking" : "denied");
+    setDecision({granted:"ok", checking:"check", spoof:"spoof"}[st] || "bad", f);
+    if (r.faces.some(x => x.logged)) {
+      const lf = r.faces.find(x => x.logged);
+      if (voice.checked && "speechSynthesis" in window) {
+        speechSynthesis.cancel();
+        speechSynthesis.speak(new SpeechSynthesisUtterance(lf.granted ? `Access granted. Welcome, ${lf.name}`
+          : lf.status === "spoof" ? "Access denied. Please present your real face." : "Access denied"));
+      }
+      loadRecent(); refreshStatus();
+    }
+  } else if (Date.now() - lastFaceAt > 1200) setDecision("scan");
+}
+function setDecision(state, f) {
+  const d = $("decision");
+  d.className = "decision" + ({ok:" ok", bad:" bad", spoof:" spoof", check:" check"}[state] || "");
+  const liveTxt = f && f.live != null ? ` · live ${f.live.toFixed(2)}` : "";
+  const set = (l, w, s, p) => { $("decLabel").textContent = l; $("decWho").textContent = w; $("decSub").textContent = s; $("decBar").style.width = `${p}%`; };
+  if (state === "idle") set("Idle", "—", "Waiting for a face", 0);
+  else if (state === "scan") set("Scanning", "No face in view", "Step in front of the camera", 0);
+  else if (state === "check") set("Checking", f.hint ? f.hint : "Hold still…", `Looking for a match · similarity ${f.score.toFixed(2)}${liveTxt}`, Math.max(0, f.score) * 100);
+  else if (state === "spoof") set("Spoof detected", "Photo or screen", `Live score ${f.live != null ? f.live.toFixed(2) : "?"} · needs ${LIVE_THRESHOLD.toFixed(2)}`, Math.max(0, f.live || 0) * 100);
+  else if (state === "ok") set("Access granted", f.name, `Similarity ${f.score.toFixed(2)}${liveTxt}${f.look && f.look !== "standard" ? " · matched look: " + f.look : ""}`, Math.max(0, f.score) * 100);
+  else set("Access denied", "Unknown person", `Best similarity ${f.score.toFixed(2)} · threshold ${THRESHOLD.toFixed(2)}`, Math.max(0, f.score) * 100);
+}
+async function loadRecent() {
+  if (!ADMIN_ON) return;
+  try {
+    const [logs, people] = await Promise.all([api("/api/logs?limit=6"), api("/api/users")]);
+    const pic = Object.fromEntries(people.map(p => [p.id, p.photo]));
+    $("recent").innerHTML = logs.length ? logs.map(l => `<li>
+        ${avatar(l.snapshot || pic[l.user_id], l.user_name)}
+        <div><div>${esc(l.user_name || "Unknown")}</div>${badge(l.event)}</div>
+        <span class="t">${fmtTime(l.ts)}</span></li>`).join("")
+      : `<li class="muted small">No events yet.</li>`;
+  } catch {}
+}
+
+/* ---------------- register / update face ---------------- */
+const PROMPTS = ["Look straight at the camera", "Turn slightly to your left", "Turn slightly to your right", "Lift your chin a little", "Relax — natural expression"];
+let capturing = false, updateTarget = null;
+const fmt12 = t => { const [h, m] = t.split(":").map(Number); return `${(h % 12) || 12}${m ? ":" + String(m).padStart(2, "0") : ""}${h < 12 ? "am" : "pm"}`; };
+function fillShifts() {
+  $("shift").innerHTML = Object.entries(SHIFTS).map(([k, [a, b]], i) =>
+      `<option value="${k}">${fmt12(a)} – ${fmt12(b)}${i === 0 ? " (default)" : ""}</option>`).join("")
+    + `<option value="custom">Other hours…</option>`;
+}
+$("shift").onchange = () => { $("customShift").hidden = $("shift").value !== "custom"; };
+function chosenShift() {
+  return $("shift").value === "custom" ? [$("shiftStart").value, $("shiftEnd").value] : SHIFTS[$("shift").value];
+}
+function resetSlots(urls=[]) { $("slots").innerHTML = PROMPTS.map((_, i) => urls[i] ? `<div class="slot"><img src="${urls[i]}" alt=""></div>` : `<div class="slot">${i + 1}</div>`).join(""); }
+resetSlots();
+function msg(type, text) { const m = $("enrolMsg"); m.className = `msg ${type}`; m.textContent = text; }
+
+async function startEnrolCamera() {
+  try { await attach($("enrolVideo")); $("enrolEmpty").hidden = true; }
+  catch (e) { cameraError($("enrolEmpty"), e); }
+}
+function clearForm() {
+  ["name", "empId", "dept"].forEach(id => $(id).value = "");
+  $("shift").selectedIndex = 0; $("customShift").hidden = true;
+}
+let captureMode = "register";      // register | recapture | look
+function setUpdateMode(user, mode="recapture") {
+  updateTarget = user; captureMode = user ? mode : "register";
+  $("enrolTitle").textContent = !user ? "Register a new employee" : mode === "look" ? "Add a look" : "Re-capture face";
+  clearForm();
+  if (user) $("name").value = user.name;
+  $("name").disabled = !!user; $("detailFields").hidden = !!user;
+  $("lookFields").hidden = captureMode !== "look";
+  $("cancelUpdate").hidden = !user;
+  $("captureBtn").textContent = !user ? "Capture 5 photos" : mode === "look" ? "Capture this look" : "Re-capture 5 photos";
+  resetSlots(); $("enrolMsg").className = "msg";
+}
+$("cancelUpdate").onclick = () => setUpdateMode(null);
+
+$("captureBtn").onclick = async () => {
+  const name = $("name").value.trim();
+  if (!updateTarget && name.length < 2) { msg("bad", "Enter a name first."); $("name").focus(); return; }
+  const [shiftStart, shiftEnd] = chosenShift();
+  if (!updateTarget && (!shiftStart || !shiftEnd || shiftEnd <= shiftStart)) { msg("bad", "Shift end must be after shift start."); return; }
+  capturing = true; $("captureBtn").disabled = true; $("cancelUpdate").disabled = true;
+  msg("info", "Get ready…");
+  const shots = [];
+  try {
+    const v = $("enrolVideo");
+    if (!v.srcObject) await startEnrolCamera();
+    for (let n = 3; n > 0; n--) { $("count").textContent = n; await sleep(800); }
+    $("count").textContent = "";
+    for (let i = 0; i < PROMPTS.length; i++) {
+      $("prompt").hidden = false; $("prompt").textContent = PROMPTS[i];
+      await sleep(i === 0 ? 500 : 1300);
+      shots.push(await grab(v, 960, .9));
+      $("flash").style.opacity = .7; setTimeout(() => $("flash").style.opacity = 0, 90);
+      resetSlots(shots.map(s => s.url));
+    }
+    $("prompt").hidden = true;
+    msg("info", "Analysing photos…");
+    const fd = updateTarget ? new FormData() : form({name, employee_id: $("empId").value.trim(), department: $("dept").value.trim(),
+                                                     shift_start: shiftStart, shift_end: shiftEnd});
+    shots.forEach((s, i) => fd.append("files", s.blob, `sample${i}.jpg`));
+    const send = async (url, method) => {
+      try { return await api(url, {method, body:fd}); }
+      catch (err) {
+        if (err.status !== 409 || !confirm(err.message + "\n\nContinue anyway?")) throw err;
+        fd.append("confirmed", "true");
+        return await api(url, {method, body:fd});
+      }
+    };
+    let res;
+    if (captureMode === "look") {
+      fd.append("label", $("lookLabel").value);
+      res = await send(`/api/users/${updateTarget.id}/looks`, "POST");
+      msg("ok", `Added the "${res.label}" look for ${res.name} using ${res.samples} of ${shots.length} photos `
+              + `(similarity to their other looks: ${res.similarity_to_existing.toFixed(2)}).`);
+    } else if (captureMode === "recapture") {
+      res = await send(`/api/users/${updateTarget.id}/face`, "PUT");
+      msg("ok", `Re-captured ${res.name} using ${res.samples} of ${shots.length} photos.`);
+    } else {
+      res = await send("/api/users", "POST");
+      msg("ok", `Registered ${res.name} (shift ${fmt12(res.shift_start)} – ${fmt12(res.shift_end)}) using ${res.samples} of ${shots.length} photos.`);
+    }
+    if (updateTarget) setTimeout(() => setUpdateMode(null), 2500); else clearForm();
+    refreshStatus();
+  } catch (e) {
+    msg("bad", e.message);
+  } finally {
+    $("prompt").hidden = true; $("count").textContent = "";
+    capturing = false; $("captureBtn").disabled = false; $("cancelUpdate").disabled = false;
+  }
+};
+
+/* ---------------- people ---------------- */
+let PEOPLE = [], editing = null;
+async function loadPeople() {
+  PEOPLE = await api("/api/users");
+  $("peopleGrid").innerHTML = PEOPLE.length ? PEOPLE.map(u => `
+    <div class="card person">
+      ${avatar(u.photo, u.name)}
+      <div class="name">${esc(u.name)}</div>
+      <div class="meta2">${esc([u.employee_id, u.department].filter(Boolean).join(" · ") || "No ID or department")}</div>
+      <div class="meta2">Shift ${u.shift_start ? fmt12(u.shift_start) + " – " + fmt12(u.shift_end) : "—"}</div>
+      <div class="muted small">Registered ${new Date(u.created_at).toLocaleDateString([], {day:"numeric", month:"short", year:"numeric"})}</div>
+      <div class="looks">${(u.looks || []).map((l, i) => `<span class="chip">${esc(l)}${u.looks.length > 1
+          ? `<button title="Remove this look" data-unlook="${u.id}" data-index="${i}">×</button>` : ""}</span>`).join("")}</div>
+      <div class="actions">
+        <button class="btn" data-edit="${u.id}">Edit</button>
+        <button class="btn" data-look="${u.id}">Add look</button>
+        <button class="btn" data-update="${u.id}">Re-capture</button>
+        <button class="btn danger" data-delete="${u.id}">Delete</button>
+      </div>
+    </div>`).join("")
+    : `<div class="card blank" style="grid-column:1/-1">No one is registered yet.<br><br><button class="btn primary" onclick="showTab('enrol')">Register the first employee</button></div>`;
+}
+$("peopleGrid").onclick = async e => {
+  const {edit, update, look, unlook, index, delete: del} = e.target.dataset;
+  if (look) { setUpdateMode(PEOPLE.find(p => p.id === look), "look"); showTab("enrol"); }
+  if (unlook) {
+    const p = PEOPLE.find(x => x.id === unlook);
+    if (!confirm(`Remove the "${p.looks[index]}" look from ${p.name}?`)) return;
+    try { await api(`/api/users/${unlook}/looks/${index}`, {method:"DELETE"}); loadPeople(); }
+    catch (err) { alert(err.message); }
+  }
+  if (edit) {
+    editing = PEOPLE.find(p => p.id === edit);
+    $("editName").textContent = editing.name;
+    $("eEmpId").value = editing.employee_id || ""; $("eDept").value = editing.department || "";
+    $("eStart").value = editing.shift_start || "09:00"; $("eEnd").value = editing.shift_end || "17:00";
+    $("editMsg").className = "msg"; $("editDlg").showModal();
+  }
+  if (update) {
+    const p = PEOPLE.find(x => x.id === update);
+    if (p.looks?.length > 1 && !confirm(`Re-capture replaces all of ${p.name}'s looks (${p.looks.join(", ")}) with one new set of photos. Continue?`)) return;
+    setUpdateMode(p, "recapture"); showTab("enrol");
+  }
+  if (del) {
+    const p = PEOPLE.find(x => x.id === del);
+    if (!confirm(`Delete ${p.name}? Their face data and photo will be removed. Past log entries are kept.`)) return;
+    try { await api(`/api/users/${del}`, {method:"DELETE"}); loadPeople(); refreshStatus(); }
+    catch (err) { alert(err.message); }
+  }
+};
+$("editCancel").onclick = () => $("editDlg").close();
+$("editForm").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    await api(`/api/users/${editing.id}`, {method:"PUT", body:form({employee_id:$("eEmpId").value.trim(), department:$("eDept").value.trim(),
+                                                                   shift_start:$("eStart").value, shift_end:$("eEnd").value})});
+    $("editDlg").close(); loadPeople();
+  } catch (err) { $("editMsg").className = "msg bad"; $("editMsg").textContent = err.message; }
+};
+
+/* ---------------- attendance ---------------- */
+let ATT = null, fixing = null;
+$("attDate").value = localDate();
+$("attDate").max = localDate();
+async function loadAttendance() {
+  await loadPhotos();
+  ATT = await api(`/api/attendance?day=${$("attDate").value}`);
+  const s = ATT.summary;
+  $("aPresent").textContent = s.present; $("aLate").textContent = s.late; $("aAbsent").textContent = s.absent;
+  $("aNoOut").textContent = s.no_checkout; $("aTail").textContent = s.tailgating;
+  $("attDay").textContent = new Date(ATT.date + "T12:00").toLocaleDateString([], {weekday:"long"}) + (s.workday ? "" : " · non-working day");
+  $("attBody").innerHTML = ATT.rows.length ? ATT.rows.map(r => `<tr>
+      <td><div class="who-cell">${avatar(PHOTOS[r.user_id], r.name)}<div>${esc(r.name)}<small>${esc([r.employee_id, r.department].filter(Boolean).join(" · "))}</small></div></div></td>
+      <td>${esc(r.shift.split("-").map(fmt12).join(" – "))}</td>
+      <td>${r.check_in || '<span class="muted">—</span>'}</td>
+      <td>${r.check_out || '<span class="muted">—</span>'}</td>
+      <td>${r.hours == null ? '<span class="muted">—</span>' : r.hours.toFixed(1)}</td>
+      <td>${r.status.map(x => `<span class="badge ${slug(x)}">${x}</span>`).join(" ")}
+          ${r.notes.length ? `<div class="muted small" title="${esc(r.notes.join("\n"))}">${r.notes.length === 1 ? "Corrected by admin" : r.notes.length + " admin corrections"}</div>` : ""}</td>
+      <td><button class="btn" data-fix="${r.user_id}" style="padding:6px 11px;font-size:13px">Correct</button></td></tr>`).join("")
+    : `<tr><td colspan="7" class="blank">No employees registered on this date.</td></tr>`;
+  $("attRules").textContent = `Check-in = first time recognised that day. Check-out = last time recognised, if at least ${RULES.min_stay} minutes later. `
+    + `Late = more than ${RULES.grace} minutes after shift start. Missed check-ins or check-outs can be corrected by the admin; every correction is recorded with its reason.`;
+}
+let PHOTOS = {};
+async function loadPhotos() { try { PHOTOS = Object.fromEntries((await api("/api/users")).map(u => [u.id, u.photo])); } catch {} }
+const shiftDay = n => { const d = new Date($("attDate").value + "T12:00"); d.setDate(d.getDate() + n); if (localDate(d) <= localDate()) { $("attDate").value = localDate(d); loadAttendance(); } };
+$("prevDay").onclick = () => shiftDay(-1);
+$("nextDay").onclick = () => shiftDay(1);
+$("todayBtn").onclick = () => { $("attDate").value = localDate(); loadAttendance(); };
+$("attDate").onchange = loadAttendance;
+$("exportBtn").onclick = () => { window.location = `/api/attendance/export?month=${$("attDate").value.slice(0, 7)}`; };
+$("attBody").onclick = e => {
+  const id = e.target.dataset.fix; if (!id) return;
+  fixing = ATT.rows.find(r => r.user_id === id);
+  $("fixWho").textContent = `${fixing.name} · ${new Date(ATT.date + "T12:00").toLocaleDateString([], {weekday:"short", day:"numeric", month:"short"})}`;
+  $("fixField").value = fixing.check_in ? "check_out" : "check_in";
+  $("fixTime").value = $("fixField").value === "check_in" ? fixing.shift.split("-")[0] : fixing.shift.split("-")[1];
+  $("fixNote").value = ""; $("fixMsg").className = "msg"; $("fixDlg").showModal();
+};
+$("fixField").onchange = () => { $("fixTime").value = $("fixField").value === "check_in" ? fixing.shift.split("-")[0] : fixing.shift.split("-")[1]; };
+$("fixCancel").onclick = () => $("fixDlg").close();
+$("fixForm").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    await api("/api/attendance/correct", {method:"POST", body:form({user_id:fixing.user_id, day:ATT.date, field:$("fixField").value,
+                                                                     time_value:$("fixTime").value, note:$("fixNote").value.trim()})});
+    $("fixDlg").close(); loadAttendance();
+  } catch (err) { $("fixMsg").className = "msg bad"; $("fixMsg").textContent = err.message; }
+};
+
+/* ---------------- activity ---------------- */
+async function loadLogs() {
+  const logs = await api("/api/logs?limit=200");
+  const f = $("filter").value;
+  const rows = logs.filter(l => f === "all" || (f === "admin" ? ADMIN_EVENTS.includes(l.event) : l.event === f));
+  $("logCount").textContent = `${rows.length} event${rows.length === 1 ? "" : "s"}`;
+  $("logBody").innerHTML = rows.length ? rows.map(l => `<tr>
+      <td>${fmtDateTime(l.ts)}</td><td>${badge(l.event)}</td><td>${esc(l.user_name || "Unknown")}</td>
+      <td>${l.score == null ? '<span class="muted">—</span>' : l.score.toFixed(2)}</td>
+      <td class="small muted">${esc(l.note || "")}</td>
+      <td>${l.snapshot ? `<img src="${l.snapshot}" alt="" data-view onerror="this.outerHTML='<span class=&quot;muted small&quot;>no photo</span>'">` : '<span class="muted">—</span>'}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="blank">No events.</td></tr>`;
+}
+$("filter").onchange = loadLogs;
+$("refreshLogs").onclick = loadLogs;
+$("logBody").onclick = e => { if (e.target.dataset.view !== undefined && e.target.tagName === "IMG") { $("viewerImg").src = e.target.src; $("viewer").showModal(); } };
+$("viewer").onclick = () => $("viewer").close();
+setInterval(() => {
+  if (!ADMIN_ON) return;
+  if ($("activity").classList.contains("active")) loadLogs();
+  if ($("attendance").classList.contains("active") && $("attDate").value === localDate()) loadAttendance();
+}, 10000);
+
+refreshStatus(); checkAdmin(); listCameras();
+</script>
+</body>
+</html>
