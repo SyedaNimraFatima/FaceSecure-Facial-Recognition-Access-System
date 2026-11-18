@@ -94,7 +94,7 @@ data/       created automatically on first run; never uploaded (see section 7)
 requirements.txt
 ```
 
-## 5. The Methods, Explained in My Own Words
+## 5. The Methods
 
 ### How a face becomes a match
 ArcFace does not store photos and compare pixels. It turns each face into 512 numbers, trained so that two photos of the same person produce similar numbers and photos of different people do not. Cosine similarity measures how closely two of these lists point in the same direction: 1 means identical and 0 means unrelated. The threshold of 0.55 is a trade-off. Raising it lets fewer strangers in but turns away more employees on a bad-lighting day; lowering it does the opposite. For a door, letting in a stranger is the worse mistake, so the threshold leans towards caution.
@@ -247,11 +247,11 @@ The first time you click *Admin login* (or use an admin option in `main.py`), yo
 - An evaluation of the liveness model on covered faces.
 
 ## 13. License
-© 2026 Syeda Nimra Fatima. All rights reserved.
+© 2026 Nimra Fatima. All rights reserved.
 
 This code is shared for viewing and evaluation only. It may not be copied, modified, distributed or used, in whole or in part, without my prior written permission. To request permission, email inimrasyed@gmail.com.
 
 The InsightFace pretrained models (`buffalo_l` and the liveness model) are not included in this repository. They are downloaded on first run and are licensed by InsightFace for non-commercial research use only. DigiFace-1M (section 9) is licensed by Microsoft for non-commercial research use.
 
 ## 14. Contact
-Syeda Nimra Fatima · inimrasyed@gmail.com · GitHub: [SyedaNimraFatima](https://github.com/SyedaNimraFatima)
+Nimra Fatima · inimrasyed@gmail.com · GitHub: [SyedaNimraFatima](https://github.com/SyedaNimraFatima)
