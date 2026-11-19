@@ -7,7 +7,7 @@ FaceSecure is a face recognition system for office entry access and staff attend
 2. [My Role and How the Project Evolved](#2-my-role-and-how-the-project-evolved)
 3. [Screenshots](#3-screenshots)
 4. [How It Works](#4-how-it-works)
-5. [The Methods, Explained in My Own Words](#5-the-methods-explained-in-my-own-words)
+5. [The Methods](#5-the-methods)
 6. [Attendance Rules](#6-attendance-rules)
 7. [Privacy and Data Handling](#7-privacy-and-data-handling)
 8. [Testing and Observations](#8-testing-and-observations)
